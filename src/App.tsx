@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, ReactElement } from "react"
+import { useState, useRef, useCallback, ReactElement, useEffect, useMemo } from "react"
 import { Canvas, MeshProps, Vector3, Euler, useFrame } from "@react-three/fiber"
 import { OrbitControls, Text } from "@react-three/drei"
 import URDFLoader, { URDFRobot, URDFVisual, URDFJoint, URDFLink } from "urdf-loader"
@@ -17,9 +17,27 @@ type meshProps = MeshProps & {
 const URDF = (
   props: urdfProps
 ) => {
+  const count = useRef<number>(0)
+  count.current = count.current + 1
+  console.log("React renders: " + count.current)
   const [ URDFRobot, setURDFRobot ] = useState<URDFRobot>()
-  const [ URDF, setURDF ] = useState<ReactElement>()
-  const refs = useRef<Record<string, THREE.Mesh>>({})
+  if ( URDFRobot == null ) {
+    console.log("URDFRobot is null")
+  } else {
+    console.log("URDFRobot is not null")
+  }
+  // if ( URDFRobot == null ) {
+  //   const loader = new URDFLoader()
+  //   loader.load( "../T12/urdf/T12.URDF", urdf => {
+  //     setURDFRobot( urdf )
+  //   })
+  // }
+  // useMemo(()=>{
+  //   const loader = new URDFLoader()
+  //   loader.load( "../T12/urdf/T12.URDF", urdf => {
+  //     setURDFRobot( urdf )
+  //   })
+  // }, [])
   useEffect(()=>{
     if ( URDFRobot == null ) {
       const loader = new URDFLoader()
@@ -27,7 +45,7 @@ const URDF = (
         setURDFRobot( urdf )
       })
     }
-  }, [URDFRobot])
+  }, [])
   const getLinkChildren = ( link: URDFLink ) => {
     if ( link.children.length > 0 ) {
       return link.children as URDFJoint[]
@@ -35,9 +53,11 @@ const URDF = (
       return null
     }
   }
+  const refs = useRef<Record<string, THREE.Mesh>>({})
   const jointMeshTree = useCallback(
     (
-      joint: URDFJoint
+      joint: URDFJoint,
+      test: number = 0
     ): {
       element: ReactElement | null
     } => {
@@ -52,7 +72,7 @@ const URDF = (
             const nested: ReactElement[] = []
             linkChildren?.forEach(child => {
               if ( child.type == "URDFJoint" ) {
-                const { element } = jointMeshTree( child )
+                const { element } = jointMeshTree( child, test+1 )
                 if ( element ) {
                   nested.push( element )
                 }
@@ -62,7 +82,7 @@ const URDF = (
               element:
               <mesh {...meshProps} ref={(meshElement) => refs.current[link.name] = meshElement!}>
                 {nested}
-                <meshStandardMaterial/>
+                <meshStandardMaterial color={test == 0 ? 'darkorange' : test == 1 ? 'gold' : test == 2 ? 'green' : test == 3 ? 'blue' : test == 4 ? 'purple' : 'deeppink'}/>
               </mesh>
             }
           }
@@ -71,6 +91,12 @@ const URDF = (
       return {element: null}
     }, []
   )
+  const [ URDF, setURDF ] = useState<ReactElement>()
+  if ( URDF == null ) {
+    console.log("URDF is null")
+  } else {
+    console.log("URDF is not null")
+  }
   const getMeshTree = useCallback(
     (
       robot: URDFRobot | undefined,
@@ -100,32 +126,61 @@ const URDF = (
           setURDF(
             <mesh {...meshProps}>
               {meshes}
-              <meshStandardMaterial/>
+              <meshStandardMaterial color={'red'}/>
             </mesh>
           )
         }
       }
     }, [jointMeshTree]
   )
-  useEffect(()=>{
-    if ( URDFRobot && URDF == null ) {
-      getMeshTree( URDFRobot, props.position, props.rotation )
-    }
-  }, [URDFRobot, getMeshTree, props])
+  if ( URDFRobot && URDF == null ) {
+    getMeshTree( URDFRobot, props.position, props.rotation )
+  }
+  // useMemo(()=>{
+  //   if ( URDFRobot && URDF == null ) {
+  //     getMeshTree( URDFRobot, props.position, props.rotation )
+  //   }},
+  //   [URDFRobot]
+  // )
+  // useEffect(()=>{
+  //   if ( URDFRobot && URDF == null ) {
+  //     getMeshTree( URDFRobot, props.position, props.rotation )
+  //   }
+  // }, [URDFRobot])
   useFrame((state) => {
-    if ( refs.current.Thigh6 ){
-      const meshProps = refs.current.Thigh6 as unknown as meshProps
-      refs.current.Thigh6.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
+    if ( refs.current.Hip1 ){
+      const meshProps = refs.current.Hip1 as unknown as meshProps
+      refs.current.Hip1.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
+    }
+    if ( refs.current.Thigh2 ){
+      const meshProps = refs.current.Thigh2 as unknown as meshProps
+      refs.current.Thigh2.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
+    }
+    if ( refs.current.Knee3 ){
+      const meshProps = refs.current.Knee3 as unknown as meshProps
+      refs.current.Knee3.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
+    }
+    if ( refs.current.Shin4 ){
+      const meshProps = refs.current.Shin4 as unknown as meshProps
+      refs.current.Shin4.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
+    }
+    if ( refs.current.Ankle5 ){
+      const meshProps = refs.current.Ankle5 as unknown as meshProps
+      refs.current.Ankle5.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
+    }
+    if ( refs.current.Foot6 ){
+      const meshProps = refs.current.Foot6 as unknown as meshProps
+      refs.current.Foot6.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
     }
   })
   return <>{URDF}</>
 }
 export function App() {
   return (
-    <Canvas dpr={[1, 2]} camera={{ position: [1, 2, 3], near: 0.01, far: 20 }}>
+    <Canvas dpr={[1, 2]} camera={{ position: [2, 6, 4], near: 0.01, far: 20 }}>
       <URDF position={[0, 0, 0]} rotation={[Math.PI/2, 0, 0]} />
-      <URDF position={[0, -1, 0]} rotation={[Math.PI/2, 0, 0]} />
-      <URDF position={[0, -2, 0]} rotation={[Math.PI/2, 0, 0]} />
+      {/* <URDF position={[0, -1, 0]} rotation={[Math.PI/2, 0, 0]} />
+      <URDF position={[0, -2, 0]} rotation={[Math.PI/2, 0, 0]} /> */}
       <gridHelper args={[10, 10]} />
       <axesHelper args={[1]} position={[-0.01, -0.01, -0.01]} />
       <Text color={"#E03131"} rotation={[Math.PI/2, Math.PI, Math.PI]} position={[0.9, 0, -0.1]} fontSize={0.12}>X</Text>
