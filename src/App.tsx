@@ -20,7 +20,7 @@ const URDF = (
   const count = useRef<number>(0)
   count.current = count.current + 1
   console.log("React renders: " + count.current)
-  const [ URDFRobot, setURDFRobot ] = useState<URDFRobot>()
+  const [ URDFRobot, setURDFRobot ] = useState<URDFRobot | null>(null)
   if ( URDFRobot == null ) {
     console.log("URDFRobot is null")
   } else {
@@ -91,7 +91,7 @@ const URDF = (
       return {element: null}
     }, []
   )
-  const [ URDF, setURDF ] = useState<ReactElement>()
+  const [ URDF, setURDF ] = useState<ReactElement | null>(null)
   if ( URDF == null ) {
     console.log("URDF is null")
   } else {
@@ -133,20 +133,20 @@ const URDF = (
       }
     }, [jointMeshTree]
   )
-  if ( URDFRobot && URDF == null ) {
-    getMeshTree( URDFRobot, props.position, props.rotation )
-  }
+  // if ( URDFRobot && URDF == null ) {
+  //   getMeshTree( URDFRobot, props.position, props.rotation )
+  // }
   // useMemo(()=>{
   //   if ( URDFRobot && URDF == null ) {
   //     getMeshTree( URDFRobot, props.position, props.rotation )
   //   }},
   //   [URDFRobot]
   // )
-  // useEffect(()=>{
-  //   if ( URDFRobot && URDF == null ) {
-  //     getMeshTree( URDFRobot, props.position, props.rotation )
-  //   }
-  // }, [URDFRobot])
+  useEffect(()=>{
+    if ( URDFRobot && URDF == null ) {
+      getMeshTree( URDFRobot, props.position, props.rotation )
+    }
+  }, [URDFRobot])
   useFrame((state) => {
     if ( refs.current.Hip1 ){
       const meshProps = refs.current.Hip1 as unknown as meshProps
