@@ -1,7 +1,10 @@
-import { useState, useRef, useCallback, ReactElement, useEffect, useMemo } from "react"
-import { Canvas, MeshProps, Vector3, Euler, useFrame } from "@react-three/fiber"
-import { OrbitControls, Text } from "@react-three/drei"
-import URDFLoader, { URDFRobot, URDFVisual, URDFJoint, URDFLink } from "urdf-loader"
+import { useRef, ReactElement, Suspense } from 'react'
+import { Mesh, Euler, Vector3 } from 'three'
+import { Canvas, MeshProps, useFrame, useLoader } from '@react-three/fiber'
+import { OrbitControls, Text } from '@react-three/drei'
+import { URDFRobot, URDFVisual, URDFJoint, URDFLink } from 'urdf-loader'
+import URDFLoaderShim from './urdf-loader-fiber-shim'
+
 interface urdfProps {
   position: Vector3
   rotation: Euler
@@ -17,179 +20,187 @@ type meshProps = MeshProps & {
 const URDF = (
   props: urdfProps
 ) => {
-  const count = useRef<number>(0)
-  count.current = count.current + 1
-  console.log("React renders: " + count.current)
-  const [ URDFRobot, setURDFRobot ] = useState<URDFRobot | null>(null)
-  if ( URDFRobot == null ) {
-    console.log("URDFRobot is null")
-  } else {
-    console.log("URDFRobot is not null")
-  }
-  // if ( URDFRobot == null ) {
-  //   const loader = new URDFLoader()
-  //   loader.load( "../T12/urdf/T12.URDF", urdf => {
-  //     setURDFRobot( urdf )
-  //   })
-  // }
-  // useMemo(()=>{
-  //   const loader = new URDFLoader()
-  //   loader.load( "../T12/urdf/T12.URDF", urdf => {
-  //     setURDFRobot( urdf )
-  //   })
-  // }, [])
-  useEffect(()=>{
-    if ( URDFRobot == null ) {
-      const loader = new URDFLoader()
-      loader.load( "../T12/urdf/T12.URDF", urdf => {
-        setURDFRobot( urdf )
-      })
-    }
-  }, [])
-  const getLinkChildren = ( link: URDFLink ) => {
+  const refs = useRef<Record<string, Mesh>>({})
+  const URDFRobot: URDFRobot = useLoader( URDFLoaderShim, '../T12/urdf/T12.URDF' )
+  const getLinkChildren =
+  (
+    link: URDFLink
+  ) => {
     if ( link.children.length > 0 ) {
       return link.children as URDFJoint[]
     } else {
       return null
     }
   }
-  const refs = useRef<Record<string, THREE.Mesh>>({})
-  const jointMeshTree = useCallback(
-    (
-      joint: URDFJoint,
-      test: number = 0
-    ): {
-      element: ReactElement | null
-    } => {
-      const link = joint.children[0] as URDFLink
-      if ( link ) {
-        const visual = link.children[0] as URDFVisual
-        if ( visual ) {
-          const mesh = visual.children[0] as THREE.Mesh
-          if ( mesh ) {
-            const meshProps: meshProps = { limit: {lower: joint.limit.lower as number, upper: joint.limit.upper as number}, startRotation: joint.rotation.z, key: link.name, geometry: mesh.geometry, position: joint.position, rotation: joint.rotation, castShadow: true, receiveShadow: true }
-            const linkChildren = getLinkChildren( link )
-            const nested: ReactElement[] = []
-            linkChildren?.forEach(child => {
-              if ( child.type == "URDFJoint" ) {
-                const { element } = jointMeshTree( child, test+1 )
-                if ( element ) {
-                  nested.push( element )
-                }
-              }
-            })
-            return {
-              element:
-              <mesh {...meshProps} ref={(meshElement) => refs.current[link.name] = meshElement!}>
-                {nested}
-                <meshStandardMaterial color={test == 0 ? 'darkorange' : test == 1 ? 'gold' : test == 2 ? 'green' : test == 3 ? 'blue' : test == 4 ? 'purple' : 'deeppink'}/>
-              </mesh>
+  const jointMeshTree =
+  (
+    joint: URDFJoint,
+    linkIndex: number = 0
+  ): {
+    jointMesh: ReactElement | null
+  } => {
+    const link = joint.children[0] as URDFLink
+    if ( link ) {
+      const visual = link.children[0] as URDFVisual
+      if ( visual ) {
+        const mesh = visual.children[0] as Mesh
+        if ( mesh ) {
+          const meshProps: meshProps =
+            {
+              key: link.name,
+              geometry: mesh.geometry,
+              position: joint.position,
+              rotation: joint.rotation,
+              startRotation: joint.rotation.z,
+              limit: {
+                lower: joint.limit.lower as number,
+                upper: joint.limit.upper as number
+              },
+              castShadow: true,
+              receiveShadow: true
             }
+          const linkChildren = getLinkChildren( link )
+          const nested: ReactElement[] = []
+          linkChildren?.forEach( child => {
+            if ( child.type == 'URDFJoint' ) {
+              const { jointMesh } = jointMeshTree( child, linkIndex + 1 )
+              if ( jointMesh ) {
+                nested.push( jointMesh )
+              }
+            }
+          })
+          const color =
+              linkIndex == 0 ? 'darkorange'
+            : linkIndex == 1 ? 'gold'
+            : linkIndex == 2 ? 'green'
+            : linkIndex == 3 ? 'blue'
+            : linkIndex == 4 ? 'purple'
+            :                  'deeppink'
+          return {
+            jointMesh:
+            <mesh {...meshProps} ref={(e) => refs.current[link.name] = e!}>
+              {nested}
+              <meshStandardMaterial color={color}/>
+            </mesh>
           }
         }
       }
-      return {element: null}
-    }, []
-  )
-  const [ URDF, setURDF ] = useState<ReactElement | null>(null)
-  if ( URDF == null ) {
-    console.log("URDF is null")
-  } else {
-    console.log("URDF is not null")
+    }
+    return { jointMesh: null }
   }
-  const getMeshTree = useCallback(
-    (
-      robot: URDFRobot | undefined,
-      position: Vector3,
-      rotation: Euler
-    ) => {
-      if ( robot ) {
-        const mesh = robot.children[0].children[0] as THREE.Mesh
-        if ( mesh ) {
-          const pos = position as number[]
-          const rot = rotation as number[]
-          robot.translateX(pos[0])
-          robot.translateY(pos[1])
-          robot.translateZ(pos[2])
-          robot.rotateX(rot[0])
-          robot.rotateY(rot[1])
-          robot.rotateZ(rot[2])
-          const meshProps: MeshProps = { key: robot.name, geometry: mesh.geometry, position: robot.position, rotation: robot.rotation, castShadow: true, receiveShadow: true }
-          const joints = robot.children.slice(1) as URDFJoint[]
-          const meshes: ReactElement[] = []
-          joints.forEach( joint => {
-            const { element } = jointMeshTree( joint  )
-            if ( element ) {
-              meshes.push( element )
-            }
-          })
-          setURDF(
-            <mesh {...meshProps}>
-              {meshes}
-              <meshStandardMaterial color={'red'}/>
-            </mesh>
-          )
-        }
+  const getMeshTree =
+  (
+    robot: URDFRobot,
+    position: Vector3,
+    rotation: Euler
+  ): {
+    combinedMesh: ReactElement
+  } => {
+    const mesh = robot.children[0].children[0] as Mesh
+    robot.setRotationFromEuler(rotation)
+    const meshProps: MeshProps =
+      {
+        key: robot.name,
+        geometry: mesh.geometry,
+        position: position,
+        rotation: robot.rotation,
+        castShadow: true,
+        receiveShadow: true
       }
-    }, [jointMeshTree]
-  )
-  // if ( URDFRobot && URDF == null ) {
-  //   getMeshTree( URDFRobot, props.position, props.rotation )
-  // }
-  // useMemo(()=>{
-  //   if ( URDFRobot && URDF == null ) {
-  //     getMeshTree( URDFRobot, props.position, props.rotation )
-  //   }},
-  //   [URDFRobot]
-  // )
-  useEffect(()=>{
-    if ( URDFRobot && URDF == null ) {
-      getMeshTree( URDFRobot, props.position, props.rotation )
+    const joints = robot.children.slice(1) as URDFJoint[]
+    const meshes: ReactElement[] = []
+    joints.forEach( joint => {
+      const { jointMesh } = jointMeshTree( joint  )
+      if ( jointMesh ) {
+        meshes.push( jointMesh )
+      }
+    })
+    const combinedMesh = (
+      <mesh {...meshProps}>
+        {meshes}
+        <meshStandardMaterial color={'red'}/>
+      </mesh>
+    )
+    return { combinedMesh }
+  }
+  const { combinedMesh: URDF } = getMeshTree( URDFRobot, props.position, props.rotation )
+  const updateJoint =
+  (
+    mesh: Mesh,
+    elapsedTime: any
+  ) => {
+    if ( mesh ){
+      const meshProps = mesh as unknown as meshProps
+      mesh.rotation.z =
+        ( meshProps.startRotation + elapsedTime )
+        % ( meshProps.limit.upper - meshProps.limit.lower )
+        + meshProps.limit.lower
     }
-  }, [URDFRobot])
+  }
   useFrame((state) => {
-    if ( refs.current.Hip1 ){
-      const meshProps = refs.current.Hip1 as unknown as meshProps
-      refs.current.Hip1.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
-    }
-    if ( refs.current.Thigh2 ){
-      const meshProps = refs.current.Thigh2 as unknown as meshProps
-      refs.current.Thigh2.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
-    }
-    if ( refs.current.Knee3 ){
-      const meshProps = refs.current.Knee3 as unknown as meshProps
-      refs.current.Knee3.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
-    }
-    if ( refs.current.Shin4 ){
-      const meshProps = refs.current.Shin4 as unknown as meshProps
-      refs.current.Shin4.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
-    }
-    if ( refs.current.Ankle5 ){
-      const meshProps = refs.current.Ankle5 as unknown as meshProps
-      refs.current.Ankle5.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
-    }
-    if ( refs.current.Foot6 ){
-      const meshProps = refs.current.Foot6 as unknown as meshProps
-      refs.current.Foot6.rotation.z = (( meshProps.startRotation + state.clock.getElapsedTime() ) % ( meshProps.limit.upper - meshProps.limit.lower )) + meshProps.limit.lower
-    }
+    updateJoint(refs.current.Hip1, state.clock.getElapsedTime())
+    updateJoint(refs.current.Thigh2, state.clock.getElapsedTime())
+    updateJoint(refs.current.Knee3, state.clock.getElapsedTime())
+    updateJoint(refs.current.Shin4, state.clock.getElapsedTime())
+    updateJoint(refs.current.Ankle5, state.clock.getElapsedTime())
+    updateJoint(refs.current.Foot6, state.clock.getElapsedTime())
   })
   return <>{URDF}</>
 }
 export function App() {
+  const urdfProps1: urdfProps = {
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(Math.PI/2, 0, 0)
+  }
+  const urdfProps2: urdfProps = {
+    position: new Vector3(0, -1, 0),
+    rotation: new Euler(Math.PI/2, 0, 2*Math.PI/3)
+  }
+  const urdfProps3: urdfProps = {
+    position: new Vector3(0, -2, 0),
+    rotation: new Euler(Math.PI/2, 0, 4*Math.PI/3)
+  }
   return (
-    <Canvas dpr={[1, 2]} camera={{ position: [2, 6, 4], near: 0.01, far: 20 }}>
-      <URDF position={[0, 0, 0]} rotation={[Math.PI/2, 0, 0]} />
-      {/* <URDF position={[0, -1, 0]} rotation={[Math.PI/2, 0, 0]} />
-      <URDF position={[0, -2, 0]} rotation={[Math.PI/2, 0, 0]} /> */}
+    <Canvas
+      dpr={[1, 2]}
+      camera={{
+        position: [2.5, 6.5, 4.5],
+        near: 0.01,
+        far: 20
+      }}>
+      <Suspense fallback={null}>
+        <URDF {...urdfProps1} />
+        <URDF {...urdfProps2} />
+        <URDF {...urdfProps3} />
+      </Suspense>
       <gridHelper args={[10, 10]} />
       <axesHelper args={[1]} position={[-0.01, -0.01, -0.01]} />
-      <Text color={"#E03131"} rotation={[Math.PI/2, Math.PI, Math.PI]} position={[0.9, 0, -0.1]} fontSize={0.12}>X</Text>
-      <Text color={"#1971C2"} rotation={[Math.PI/2, Math.PI, Math.PI]} position={[0.1, 0, 0.9]} fontSize={0.12}>Z</Text>
       <directionalLight intensity={2} position={[5, 5, 5]} />
       <directionalLight intensity={2} position={[5, 5, -5]} />
       <directionalLight intensity={2} position={[-5, 5, 5]} />
       <directionalLight intensity={2} position={[-5, 5, -5]} />
-      <OrbitControls makeDefault screenSpacePanning={ false } enableZoom={ false } maxPolarAngle={Math.PI/2} enablePan={ true } target={ [0.25, 0, 1] } />
+      <Text
+        color={'#E03131'}
+        rotation={[Math.PI/2, Math.PI, Math.PI]}
+        position={[0.9, 0, -0.1]}
+        fontSize={0.12}>
+          X
+      </Text>
+      <Text
+        color={'#1971C2'}
+        rotation={[Math.PI/2, Math.PI, Math.PI]}
+        position={[0.1, 0, 0.9]}
+        fontSize={0.12}>
+          Z
+      </Text>
+      <OrbitControls
+        makeDefault
+        screenSpacePanning={ false }
+        enableZoom={ false }
+        maxPolarAngle={Math.PI/2}
+        enablePan={ true }
+        target={ [0.25, 0, 1] }
+      />
     </Canvas>
   )
 }
