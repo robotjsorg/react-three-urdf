@@ -1,5 +1,5 @@
 import { useRef, ReactElement, Suspense } from 'react'
-import { Mesh, Euler, Vector3 } from 'three'
+import { Mesh, Euler, Vector3, Material } from 'three'
 import { Canvas, MeshProps, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls, Text } from '@react-three/drei'
 import { URDFRobot, URDFVisual, URDFJoint, URDFLink } from 'urdf-loader'
@@ -17,11 +17,17 @@ type meshProps = MeshProps & {
   limit: limit
   startRotation: number
 }
-const URDF = (
+const URDF =
+(
   props: urdfProps
 ) => {
   const refs = useRef<Record<string, Mesh>>({})
-  const URDFRobot: URDFRobot = useLoader( URDFLoaderShim, '../T12/urdf/T12.URDF' )
+  const URDFRobot: URDFRobot = useLoader( URDFLoaderShim,
+    // '../urdf_files_dataset/urdf_files/matlab/fanuc_lrmate200ib_support/urdf/fanucLRMate200ib.urdf'
+    // '../urdf_files_dataset/urdf_files/robotics-toolbox/abb_irb140/urdf/irb140.urdf'
+    '../T12/urdf/T12.URDF'
+    // '../urdf_files_dataset/urdf_files/ros-industrial/abb/abb_irb5400_support/urdf/irb5400.urdf'
+  )
   const getLinkChildren =
   (
     link: URDFLink
@@ -94,33 +100,36 @@ const URDF = (
     position: Vector3,
     rotation: Euler
   ): {
-    combinedMesh: ReactElement
+    combinedMesh: ReactElement | null
   } => {
     const mesh = robot.children[0].children[0] as Mesh
-    robot.setRotationFromEuler(rotation)
-    const meshProps: MeshProps =
+    if ( mesh ) {
+      const meshProps: MeshProps =
       {
         key: robot.name,
         geometry: mesh.geometry,
         position: position,
-        rotation: robot.rotation,
+        rotation: rotation,
         castShadow: true,
         receiveShadow: true
       }
-    const joints = robot.children.slice(1) as URDFJoint[]
-    const meshes: ReactElement[] = []
-    joints.forEach( joint => {
-      const { jointMesh } = jointMeshTree( joint  )
-      if ( jointMesh ) {
-        meshes.push( jointMesh )
-      }
-    })
-    const combinedMesh = (
-      <mesh {...meshProps}>
-        {meshes}
-        <meshStandardMaterial color={'red'}/>
-      </mesh>
-    )
+      const joints = robot.children.slice(1) as URDFJoint[]
+      const meshes: ReactElement[] = []
+      joints.forEach( joint => {
+        const { jointMesh } = jointMeshTree( joint  )
+        if ( jointMesh ) {
+          meshes.push( jointMesh )
+        }
+      })
+      const combinedMesh = (
+        <mesh {...meshProps}>
+          {meshes}
+          <meshStandardMaterial color={'red'}/>
+        </mesh>
+      )
+      return { combinedMesh }
+    }
+    const combinedMesh = null
     return { combinedMesh }
   }
   const { combinedMesh: URDF } = getMeshTree( URDFRobot, props.position, props.rotation )
@@ -138,12 +147,13 @@ const URDF = (
     }
   }
   useFrame((state) => {
-    updateJoint(refs.current.Hip1, state.clock.getElapsedTime())
-    updateJoint(refs.current.Thigh2, state.clock.getElapsedTime())
-    updateJoint(refs.current.Knee3, state.clock.getElapsedTime())
-    updateJoint(refs.current.Shin4, state.clock.getElapsedTime())
-    updateJoint(refs.current.Ankle5, state.clock.getElapsedTime())
-    updateJoint(refs.current.Foot6, state.clock.getElapsedTime())
+    updateJoint(refs.current[0], state.clock.getElapsedTime())
+    // updateJoint(refs.current.Hip1, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Thigh2, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Knee3, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Shin4, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Ankle5, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Foot6, state.clock.getElapsedTime())
   })
   return <>{URDF}</>
 }
@@ -170,8 +180,8 @@ export function App() {
       }}>
       <Suspense fallback={null}>
         <URDF {...urdfProps1} />
-        <URDF {...urdfProps2} />
-        <URDF {...urdfProps3} />
+        {/* <URDF {...urdfProps2} />
+        <URDF {...urdfProps3} /> */}
       </Suspense>
       <gridHelper args={[10, 10]} />
       <axesHelper args={[1]} position={[-0.01, -0.01, -0.01]} />
