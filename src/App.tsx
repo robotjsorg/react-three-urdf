@@ -1,11 +1,12 @@
 import { useRef, ReactElement, Suspense } from 'react'
-import { Mesh, Euler, Vector3, Material } from 'three'
+import { Mesh, Euler, Vector3 } from 'three'
 import { Canvas, MeshProps, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls, Text } from '@react-three/drei'
 import { URDFRobot, URDFVisual, URDFJoint, URDFLink } from 'urdf-loader'
 import URDFLoaderShim from './urdf-loader-fiber-shim'
 
 interface urdfProps {
+  filepath: string
   position: Vector3
   rotation: Euler
 }
@@ -14,6 +15,7 @@ interface limit {
   upper: number
 }
 type meshProps = MeshProps & {
+  axis: Vector3
   limit: limit
   startRotation: number
 }
@@ -22,14 +24,8 @@ const URDF =
   props: urdfProps
 ) => {
   const refs = useRef<Record<string, Mesh>>({})
-  const URDFRobot: URDFRobot = useLoader( URDFLoaderShim,
-    // '../urdf_files_dataset/urdf_files/matlab/fanuc_lrmate200ib_support/urdf/fanucLRMate200ib.urdf'
-    // '../urdf_files_dataset/urdf_files/robotics-toolbox/abb_irb140/urdf/irb140.urdf'
-    '../T12/urdf/T12.URDF'
-    // '../urdf_files_dataset/urdf_files/ros-industrial/abb/abb_irb5400_support/urdf/irb5400.urdf'
-  )
-  const getLinkChildren =
-  (
+  const URDFRobot: URDFRobot = useLoader(URDFLoaderShim, props.filepath )
+  const getLinkChildren = (
     link: URDFLink
   ) => {
     if ( link.children.length > 0 ) {
@@ -38,13 +34,10 @@ const URDF =
       return null
     }
   }
-  const jointMeshTree =
-  (
+  const jointMeshTree = (
     joint: URDFJoint,
     linkIndex: number = 0
-  ): {
-    jointMesh: ReactElement | null
-  } => {
+  ): ReactElement | null => {
     const link = joint.children[0] as URDFLink
     if ( link ) {
       const visual = link.children[0] as URDFVisual
@@ -55,6 +48,8 @@ const URDF =
             {
               key: link.name,
               geometry: mesh.geometry,
+              material: mesh.material,
+              axis: joint.axis,
               position: joint.position,
               rotation: joint.rotation,
               startRotation: joint.rotation.z,
@@ -69,7 +64,7 @@ const URDF =
           const nested: ReactElement[] = []
           linkChildren?.forEach( child => {
             if ( child.type == 'URDFJoint' ) {
-              const { jointMesh } = jointMeshTree( child, linkIndex + 1 )
+              const jointMesh = jointMeshTree( child, linkIndex + 1 )
               if ( jointMesh ) {
                 nested.push( jointMesh )
               }
@@ -82,32 +77,29 @@ const URDF =
             : linkIndex == 3 ? 'blue'
             : linkIndex == 4 ? 'purple'
             :                  'deeppink'
-          return {
-            jointMesh:
+          return (
             <mesh {...meshProps} ref={(e) => refs.current[link.name] = e!}>
               {nested}
               <meshStandardMaterial color={color}/>
             </mesh>
-          }
+          )
         }
       }
     }
-    return { jointMesh: null }
+    return null
   }
-  const getMeshTree =
-  (
+  const getMeshTree = (
     robot: URDFRobot,
     position: Vector3,
     rotation: Euler
-  ): {
-    combinedMesh: ReactElement | null
-  } => {
+  ): ReactElement | null => {
     const mesh = robot.children[0].children[0] as Mesh
     if ( mesh ) {
       const meshProps: MeshProps =
       {
         key: robot.name,
         geometry: mesh.geometry,
+        material: mesh.material,
         position: position,
         rotation: rotation,
         castShadow: true,
@@ -116,23 +108,31 @@ const URDF =
       const joints = robot.children.slice(1) as URDFJoint[]
       const meshes: ReactElement[] = []
       joints.forEach( joint => {
-        const { jointMesh } = jointMeshTree( joint  )
+        const jointMesh = jointMeshTree( joint  )
         if ( jointMesh ) {
           meshes.push( jointMesh )
         }
       })
-      const combinedMesh = (
+      return (
         <mesh {...meshProps}>
           {meshes}
           <meshStandardMaterial color={'red'}/>
         </mesh>
       )
-      return { combinedMesh }
     }
-    const combinedMesh = null
-    return { combinedMesh }
+    return null
   }
-  const { combinedMesh: URDF } = getMeshTree( URDFRobot, props.position, props.rotation )
+  const URDF = getMeshTree( URDFRobot, props.position, props.rotation )
+  const calculateJointAngles = (
+    meshProps: meshProps,
+    elapsedTime: any
+  ): number => {
+    return (
+        (meshProps.startRotation + elapsedTime)
+      % (meshProps.limit.upper - meshProps.limit.lower)
+      + meshProps.limit.lower
+    )
+  }
   const updateJoint =
   (
     mesh: Mesh,
@@ -140,48 +140,108 @@ const URDF =
   ) => {
     if ( mesh ){
       const meshProps = mesh as unknown as meshProps
-      mesh.rotation.z =
-        ( meshProps.startRotation + elapsedTime )
-        % ( meshProps.limit.upper - meshProps.limit.lower )
-        + meshProps.limit.lower
+      if ( meshProps.axis.x ) {
+        mesh.rotation.x = calculateJointAngles(meshProps, elapsedTime)
+      } else if ( meshProps.axis.y ) {
+        mesh.rotation.y = calculateJointAngles(meshProps, elapsedTime)
+      } else if ( meshProps.axis.z ) {
+        mesh.rotation.z = calculateJointAngles(meshProps, elapsedTime)
+      }
     }
   }
-  useFrame((state) => {
-    updateJoint(refs.current[0], state.clock.getElapsedTime())
-    // updateJoint(refs.current.Hip1, state.clock.getElapsedTime())
-    // updateJoint(refs.current.Thigh2, state.clock.getElapsedTime())
-    // updateJoint(refs.current.Knee3, state.clock.getElapsedTime())
-    // updateJoint(refs.current.Shin4, state.clock.getElapsedTime())
-    // updateJoint(refs.current.Ankle5, state.clock.getElapsedTime())
-    // updateJoint(refs.current.Foot6, state.clock.getElapsedTime())
-  })
-  return <>{URDF}</>
+  // useFrame((state) => {
+  //   const joints = refs.current
+  //   for ( const joint in joints ) {
+  //     updateJoint(refs.current[joint], state.clock.getElapsedTime())
+  //   }
+  //   // updateJoint(refs.current.Hip1, state.clock.getElapsedTime())
+  //   // updateJoint(refs.current.Thigh2, state.clock.getElapsedTime())
+  //   // updateJoint(refs.current.Knee3, state.clock.getElapsedTime())
+  //   // updateJoint(refs.current.Shin4, state.clock.getElapsedTime())
+  //   // updateJoint(refs.current.Ankle5, state.clock.getElapsedTime())
+  //   // updateJoint(refs.current.Foot6, state.clock.getElapsedTime())
+  // })
+  return (
+    <>
+      {URDF}
+    </>
+  )
 }
 export function App() {
-  const urdfProps1: urdfProps = {
+  /* SAMPLE
+  const T12: urdfProps = {
+    filepath: '../T12/urdf/T12.URDF',
     position: new Vector3(0, 0, 0),
     rotation: new Euler(Math.PI/2, 0, 0)
   }
-  const urdfProps2: urdfProps = {
-    position: new Vector3(0, -1, 0),
-    rotation: new Euler(Math.PI/2, 0, 2*Math.PI/3)
+
+  <URDF {...T12} />
+  */
+  const dataset = '../urdf_files_dataset/urdf_files'
+  // TODO: Regular STL files not loading
+  const kukaIiwa7: urdfProps = {
+    filepath: dataset + '/matlab/iiwa_description/urdf/kukaIiwa7.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(-Math.PI/2, 0, 0)
   }
-  const urdfProps3: urdfProps = {
-    position: new Vector3(0, -2, 0),
-    rotation: new Euler(Math.PI/2, 0, 4*Math.PI/3)
+  const kukaIiwa14: urdfProps = {
+    filepath: dataset + '/matlab/iiwa_description/urdf/kukaIiwa14.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(-Math.PI/2, 0, 0)
   }
+  // TODO: Joints do not line up, materials do not work
+  const abb_irb140: urdfProps = {
+    filepath: dataset + '/robotics-toolbox/abb_irb140/urdf/irb140.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(-Math.PI/2, 0, 0)
+  }
+  // TODO: Collada files not loading, throw error
+  const abb_irb5400: urdfProps = {
+    filepath: dataset + '/ros-industrial/abb/abb_irb5400_support/urdf/irb5400.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(0, 0, 0)
+  }
+  // Working examples
+  const fanuc_lrmate200ib: urdfProps = {
+    filepath: dataset + '/matlab/fanuc_lrmate200ib_support/urdf/fanucLRMate200ib.urdf',
+    position: new Vector3(-0.5, 0, -1),
+    rotation: new Euler(-Math.PI/2, 0, -Math.PI/4)
+  }
+  const fanuc_m16ib: urdfProps = {
+    filepath: dataset + '/matlab/fanuc_m16ib_support/urdf/fanucM16ib.urdf',
+    position: new Vector3(0.5, 0, -1),
+    rotation: new Euler(-Math.PI/2, 0, -Math.PI/4)
+  }
+  const motoman_mh5: urdfProps = {
+    filepath: dataset + '/matlab/motoman_mh5_support/urdf/yaskawaMotomanMH5.urdf',
+    position: new Vector3(-1, 0, 0),
+    rotation: new Euler(-Math.PI/2, 0, -Math.PI/4)
+  }
+  const abb_irb1600: urdfProps = {
+    filepath: dataset + '/matlab/abb_irb1600_support/urdf/abbIrb1600.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(-Math.PI/2, 0, -Math.PI/4)
+  }
+  const abb_irb120: urdfProps = {
+    filepath: dataset + '/matlab/abb_irb120_support/urdf/abbIrb120.urdf',
+    position: new Vector3(1, 0, 0),
+    rotation: new Euler(-Math.PI/2, 0, -Math.PI/4)
+  }
+
   return (
     <Canvas
       dpr={[1, 2]}
       camera={{
-        position: [2.5, 6.5, 4.5],
+        position: [0, 2, 2],
         near: 0.01,
         far: 20
       }}>
       <Suspense fallback={null}>
-        <URDF {...urdfProps1} />
-        {/* <URDF {...urdfProps2} />
-        <URDF {...urdfProps3} /> */}
+        <URDF {...fanuc_lrmate200ib} />
+        <URDF {...fanuc_m16ib} />
+        <URDF {...motoman_mh5} />
+        <URDF {...abb_irb1600} />
+        <URDF {...abb_irb120} />
       </Suspense>
       <gridHelper args={[10, 10]} />
       <axesHelper args={[1]} position={[-0.01, -0.01, -0.01]} />
@@ -209,7 +269,7 @@ export function App() {
         enableZoom={ false }
         maxPolarAngle={Math.PI/2}
         enablePan={ true }
-        target={ [0.25, 0, 1] }
+        target={ [0, 0, 0] }
       />
     </Canvas>
   )

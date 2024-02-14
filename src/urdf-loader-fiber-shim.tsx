@@ -7,7 +7,7 @@ export default class URDFLoaderShim extends URDFLoader {
   path = ""
   resourcePath = ""
   requestHeader = {}
-  onMeshLoad = (_obj: Object3D, _err?: Error) => {}
+  onMeshLoad = (obj: Object3D, err?: Error) => {}
   loadMeshCb = (
     url: string,
     manager: LoadingManager,
