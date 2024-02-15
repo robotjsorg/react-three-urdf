@@ -1,6 +1,6 @@
 import { useRef, ReactElement, Suspense } from 'react'
 import { Mesh, Euler, Vector3 } from 'three'
-import { Canvas, MeshProps, useFrame, useLoader } from '@react-three/fiber'
+import { Canvas, MeshProps, useLoader, useFrame } from '@react-three/fiber'
 import { OrbitControls, Text } from '@react-three/drei'
 import { URDFRobot, URDFVisual, URDFJoint, URDFLink } from 'urdf-loader'
 import URDFLoaderShim from './urdf-loader-fiber-shim'
@@ -24,7 +24,10 @@ const URDF =
   props: urdfProps
 ) => {
   const refs = useRef<Record<string, Mesh>>({})
-  const URDFRobot: URDFRobot = useLoader(URDFLoaderShim, props.filepath )
+  const URDFRobot: URDFRobot = useLoader(
+    URDFLoaderShim,
+    props.filepath
+  )
   const getLinkChildren = (
     link: URDFLink
   ) => {
@@ -123,32 +126,32 @@ const URDF =
     return null
   }
   const URDF = getMeshTree( URDFRobot, props.position, props.rotation )
-  const calculateJointAngles = (
-    meshProps: meshProps,
-    elapsedTime: any
-  ): number => {
-    return (
-        (meshProps.startRotation + elapsedTime)
-      % (meshProps.limit.upper - meshProps.limit.lower)
-      + meshProps.limit.lower
-    )
-  }
-  const updateJoint =
-  (
-    mesh: Mesh,
-    elapsedTime: any
-  ) => {
-    if ( mesh ){
-      const meshProps = mesh as unknown as meshProps
-      if ( meshProps.axis.x ) {
-        mesh.rotation.x = calculateJointAngles(meshProps, elapsedTime)
-      } else if ( meshProps.axis.y ) {
-        mesh.rotation.y = calculateJointAngles(meshProps, elapsedTime)
-      } else if ( meshProps.axis.z ) {
-        mesh.rotation.z = calculateJointAngles(meshProps, elapsedTime)
-      }
-    }
-  }
+  // const calculateJointAngles = (
+  //   meshProps: meshProps,
+  //   elapsedTime: any
+  // ): number => {
+  //   return (
+  //       (meshProps.startRotation + elapsedTime)
+  //     % (meshProps.limit.upper - meshProps.limit.lower)
+  //     + meshProps.limit.lower
+  //   )
+  // }
+  // const updateJoint =
+  // (
+  //   mesh: Mesh,
+  //   elapsedTime: any
+  // ) => {
+  //   if ( mesh ){
+  //     const meshProps = mesh as unknown as meshProps
+  //     if ( meshProps.axis.x ) {
+  //       mesh.rotation.x = calculateJointAngles(meshProps, elapsedTime)
+  //     } else if ( meshProps.axis.y ) {
+  //       mesh.rotation.y = calculateJointAngles(meshProps, elapsedTime)
+  //     } else if ( meshProps.axis.z ) {
+  //       mesh.rotation.z = calculateJointAngles(meshProps, elapsedTime)
+  //     }
+  //   }
+  // }
   // useFrame((state) => {
   //   const joints = refs.current
   //   for ( const joint in joints ) {
@@ -178,7 +181,7 @@ export function App() {
   <URDF {...T12} />
   */
   const dataset = '../urdf_files_dataset/urdf_files'
-  // TODO: Regular STL files not loading
+  // TODO: Large STL files, No error
   const kukaIiwa7: urdfProps = {
     filepath: dataset + '/matlab/iiwa_description/urdf/kukaIiwa7.urdf',
     position: new Vector3(0, 0, 0),
@@ -189,13 +192,25 @@ export function App() {
     position: new Vector3(0, 0, 0),
     rotation: new Euler(-Math.PI/2, 0, 0)
   }
-  // TODO: Joints do not line up, materials do not work
+  const turtlebot3: urdfProps = {
+    filepath: dataset + '/oems/xacro_generated/turtlebot3_robotis/turtlebot3_description/urdf/turtlebot3_burger.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(0, 0, 0)
+  }
+  // TODO: Joints and materials, No error
   const abb_irb140: urdfProps = {
     filepath: dataset + '/robotics-toolbox/abb_irb140/urdf/irb140.urdf',
     position: new Vector3(0, 0, 0),
     rotation: new Euler(-Math.PI/2, 0, 0)
   }
-  // TODO: Collada files not loading, throw error
+  // TODO: Collada
+  // [Error] THREE.ColladaLoader: Failed to parse collada file.
+  // [Error] TypeError: null is not an object (evaluating 'dae.scene') — URDFLoader.js:654
+  const panda_arm: urdfProps = {
+    filepath: '../panda_arm/meshes/panda_arm.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(Math.PI/2, 0, 0)
+  }
   const abb_irb5400: urdfProps = {
     filepath: dataset + '/ros-industrial/abb/abb_irb5400_support/urdf/irb5400.urdf',
     position: new Vector3(0, 0, 0),
@@ -237,6 +252,12 @@ export function App() {
         far: 20
       }}>
       <Suspense fallback={null}>
+        {/* <URDF {...kukaIiwa7} /> */}
+        {/* <URDF {...kukaIiwa14} /> */}
+        {/* <URDF {...turtlebot3} /> */}
+        {/* <URDF {...abb_irb140} /> */}
+        {/* <URDF {...panda_arm} /> */}
+        {/* <URDF {...abb_irb5400} /> */}
         <URDF {...fanuc_lrmate200ib} />
         <URDF {...fanuc_m16ib} />
         <URDF {...motoman_mh5} />
