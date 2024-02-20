@@ -5,6 +5,8 @@ import { OrbitControls, Text } from '@react-three/drei'
 import { URDFRobot, URDFVisual, URDFJoint, URDFLink } from 'urdf-loader'
 import URDFLoaderShim from './urdf-loader-fiber-shim'
 
+import { suspend } from 'suspend-react'
+
 interface urdfProps {
   filepath: string
   position: Vector3
@@ -19,6 +21,15 @@ type meshProps = MeshProps & {
   limit: limit
   startRotation: number
 }
+const getLinkChildren = (
+  link: URDFLink
+) => {
+  if ( link.children.length > 0 ) {
+    return link.children as URDFJoint[]
+  } else {
+    return null
+  }
+}
 const URDF =
 (
   props: urdfProps
@@ -28,15 +39,7 @@ const URDF =
     URDFLoaderShim,
     props.filepath
   )
-  const getLinkChildren = (
-    link: URDFLink
-  ) => {
-    if ( link.children.length > 0 ) {
-      return link.children as URDFJoint[]
-    } else {
-      return null
-    }
-  }
+  console.log(URDFRobot)
   const jointMeshTree = (
     joint: URDFJoint,
     linkIndex: number = 0
@@ -96,8 +99,9 @@ const URDF =
     position: Vector3,
     rotation: Euler
   ): ReactElement | null => {
-    const mesh = robot.children[0].children[0] as Mesh
-    if ( mesh ) {
+    if ( robot.children.length > 1 ) {
+      const mesh = robot.children[0].children[0] as Mesh
+      const joints = robot.children.slice(1) as URDFJoint[]
       const meshProps: MeshProps =
       {
         key: robot.name,
@@ -108,7 +112,9 @@ const URDF =
         castShadow: true,
         receiveShadow: true
       }
-      const joints = robot.children.slice(1) as URDFJoint[]
+      // if ( robot.name == "" ) { // robot.name robot.robotName
+      //   meshProps.scale = new Vector3(0.01, 0.01, 0.01)
+      // }
       const meshes: ReactElement[] = []
       joints.forEach( joint => {
         const jointMesh = jointMeshTree( joint  )
@@ -122,9 +128,45 @@ const URDF =
           <meshStandardMaterial color={'red'}/>
         </mesh>
       )
+    } else {
+      const joints = robot.children.slice(0) as URDFJoint[]
+      const meshProps: MeshProps =
+      {
+        key: robot.name,
+        position: position,
+        rotation: rotation
+      }
+      // if ( robot.robotName == "" ) { // robot.name robot.robotName
+      //   meshProps.scale = new Vector3(0.01, 0.01, 0.01)
+      // }
+      const meshes: ReactElement[] = []
+      joints.forEach( joint => {
+        const jointMesh = jointMeshTree( joint  )
+        if ( jointMesh ) {
+          meshes.push( jointMesh )
+        }
+      })
+      return (
+        <mesh {...meshProps}>
+          {meshes}
+        </mesh>
+      )
     }
-    return null
   }
+  // const getRobot = ( path: string, position: Vector3, rotation: Euler ) => {
+  //   suspend(async () => {
+  //     const URDFRobot: URDFRobot = useLoader(
+  //       URDFLoaderShim,
+  //       path
+  //     )
+  //     console.log(URDFRobot)
+  //     const URDF = getMeshTree( URDFRobot, position, rotation )
+  //     return (
+  //       URDF
+  //     )
+  //   }, [path])
+  // }
+  // const URDF = getRobot(props.filepath, props.position, props.rotation)
   const URDF = getMeshTree( URDFRobot, props.position, props.rotation )
   // const calculateJointAngles = (
   //   meshProps: meshProps,
@@ -180,51 +222,21 @@ export function App() {
 
   <URDF {...T12} />
   */
-  const dataset = '../urdf_files_dataset/urdf_files'
-  // TODO: Large STL files, No error
-  const kukaIiwa7: urdfProps = {
-    filepath: dataset + '/matlab/iiwa_description/urdf/kukaIiwa7.urdf',
-    position: new Vector3(0, 0, 0),
-    rotation: new Euler(-Math.PI/2, 0, 0)
-  }
-  const kukaIiwa14: urdfProps = {
-    filepath: dataset + '/matlab/iiwa_description/urdf/kukaIiwa14.urdf',
-    position: new Vector3(0, 0, 0),
-    rotation: new Euler(-Math.PI/2, 0, 0)
-  }
-  const turtlebot3: urdfProps = {
-    filepath: dataset + '/oems/xacro_generated/turtlebot3_robotis/turtlebot3_description/urdf/turtlebot3_burger.urdf',
-    position: new Vector3(0, 0, 0),
-    rotation: new Euler(0, 0, 0)
-  }
-  // TODO: Joints and materials, No error
-  const abb_irb140: urdfProps = {
-    filepath: dataset + '/robotics-toolbox/abb_irb140/urdf/irb140.urdf',
-    position: new Vector3(0, 0, 0),
-    rotation: new Euler(-Math.PI/2, 0, 0)
-  }
-  // TODO: Collada
-  // [Error] THREE.ColladaLoader: Failed to parse collada file.
-  // [Error] TypeError: null is not an object (evaluating 'dae.scene') — URDFLoader.js:654
-  const panda_arm: urdfProps = {
-    filepath: '../panda_arm/meshes/panda_arm.urdf',
+  const T12: urdfProps = {
+    filepath: '../T12/urdf/T12.URDF',
     position: new Vector3(0, 0, 0),
     rotation: new Euler(Math.PI/2, 0, 0)
   }
-  const abb_irb5400: urdfProps = {
-    filepath: dataset + '/ros-industrial/abb/abb_irb5400_support/urdf/irb5400.urdf',
-    position: new Vector3(0, 0, 0),
-    rotation: new Euler(0, 0, 0)
-  }
+  const dataset = '../urdf_files_dataset/urdf_files'
   // Working examples
   const fanuc_lrmate200ib: urdfProps = {
     filepath: dataset + '/matlab/fanuc_lrmate200ib_support/urdf/fanucLRMate200ib.urdf',
-    position: new Vector3(-0.5, 0, -1),
+    position: new Vector3(0.5, 0, -1),
     rotation: new Euler(-Math.PI/2, 0, -Math.PI/4)
   }
   const fanuc_m16ib: urdfProps = {
     filepath: dataset + '/matlab/fanuc_m16ib_support/urdf/fanucM16ib.urdf',
-    position: new Vector3(0.5, 0, -1),
+    position: new Vector3(1.5, 0, -1),
     rotation: new Euler(-Math.PI/2, 0, -Math.PI/4)
   }
   const motoman_mh5: urdfProps = {
@@ -242,6 +254,42 @@ export function App() {
     position: new Vector3(1, 0, 0),
     rotation: new Euler(-Math.PI/2, 0, -Math.PI/4)
   }
+  const kukaIiwa7: urdfProps = {
+    filepath: dataset + '/matlab/iiwa_description/urdf/kukaIiwa7.urdf',
+    position: new Vector3(-1.5, 0, -1),
+    rotation: new Euler(-Math.PI/2, 0, 0)
+  }
+  const kukaIiwa14: urdfProps = {
+    filepath: dataset + '/matlab/iiwa_description/urdf/kukaIiwa14.urdf',
+    position: new Vector3(-0.5, 0, -1),
+    rotation: new Euler(-Math.PI/2, 0, 0)
+  }
+  // TODO: Joints misaligned and broken materials, No error
+  const abb_irb140: urdfProps = {
+    filepath: dataset + '/robotics-toolbox/abb_irb140/urdf/irb140.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(-Math.PI/2, 0, 0)
+  }
+  // TODO: Model is too big to load
+  // [Error] RangeError: length too large
+  const jackal: urdfProps = {
+    filepath: dataset + '/oems/xacro_generated/jackal_clearpath_robotics/jackal_description/urdf/jackal.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(0, 0, 0)
+  }
+  // TODO: Collada
+  // [Error] THREE.ColladaLoader: Failed to parse collada file.
+  // [Error] TypeError: null is not an object (evaluating 'dae.scene') — URDFLoader.js:654
+  const panda_arm: urdfProps = {
+    filepath: '../panda_arm/meshes/panda_arm.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(Math.PI/2, 0, 0)
+  }
+  const abb_irb5400: urdfProps = {
+    filepath: dataset + '/ros-industrial/abb/abb_irb5400_support/urdf/irb5400.urdf',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(0, 0, 0)
+  }
 
   return (
     <Canvas
@@ -249,20 +297,21 @@ export function App() {
       camera={{
         position: [0, 2, 2],
         near: 0.01,
-        far: 20
+        far: 100
       }}>
       <Suspense fallback={null}>
-        {/* <URDF {...kukaIiwa7} /> */}
-        {/* <URDF {...kukaIiwa14} /> */}
-        {/* <URDF {...turtlebot3} /> */}
-        {/* <URDF {...abb_irb140} /> */}
-        {/* <URDF {...panda_arm} /> */}
-        {/* <URDF {...abb_irb5400} /> */}
+        {/* <URDF {...T12} /> */}
         <URDF {...fanuc_lrmate200ib} />
         <URDF {...fanuc_m16ib} />
         <URDF {...motoman_mh5} />
         <URDF {...abb_irb1600} />
         <URDF {...abb_irb120} />
+        <URDF {...kukaIiwa7} />
+        <URDF {...kukaIiwa14} />
+        {/* <URDF {...abb_irb140} /> */}
+        {/* <URDF {...jackal} /> */}
+        {/* <URDF {...panda_arm} /> */}
+        {/* <URDF {...abb_irb5400} /> */}
       </Suspense>
       <gridHelper args={[10, 10]} />
       <axesHelper args={[1]} position={[-0.01, -0.01, -0.01]} />
@@ -287,7 +336,7 @@ export function App() {
       <OrbitControls
         makeDefault
         screenSpacePanning={ false }
-        enableZoom={ false }
+        enableZoom={ true }
         maxPolarAngle={Math.PI/2}
         enablePan={ true }
         target={ [0, 0, 0] }
