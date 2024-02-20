@@ -1,4 +1,4 @@
-import { useRef, ReactElement, Suspense, useMemo } from 'react'
+import { useRef, ReactElement, Suspense } from 'react' //, useMemo
 import { Mesh, Euler, Vector3 } from 'three'
 import { Canvas, MeshProps, useLoader } from '@react-three/fiber' //, useFrame
 import { OrbitControls, Text } from '@react-three/drei'
@@ -204,7 +204,7 @@ const URDF =
   // useFrame((state) => {
   //   const joints = refs.current
   //   for ( const joint in joints ) {
-  //     updateJoint(refs.current[joint], state.clock.getElapsedTime())
+  //     updateJoint(joints[joint], state.clock.getElapsedTime())
   //   }
   //   // updateJoint(refs.current.Hip1, state.clock.getElapsedTime())
   //   // updateJoint(refs.current.Thigh2, state.clock.getElapsedTime())
