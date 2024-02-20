@@ -1,11 +1,11 @@
-import { useRef, ReactElement, Suspense } from 'react'
+import { useRef, ReactElement, Suspense, useMemo } from 'react'
 import { Mesh, Euler, Vector3 } from 'three'
-import { Canvas, MeshProps, useLoader, useFrame } from '@react-three/fiber'
+import { Canvas, MeshProps, useLoader } from '@react-three/fiber' //, useFrame
 import { OrbitControls, Text } from '@react-three/drei'
 import { URDFRobot, URDFVisual, URDFJoint, URDFLink } from 'urdf-loader'
 import URDFLoaderShim from './urdf-loader-fiber-shim'
 
-import { suspend } from 'suspend-react'
+// import { suspend } from 'suspend-react'
 
 interface urdfProps {
   filepath: string
@@ -35,6 +35,10 @@ const URDF =
   props: urdfProps
 ) => {
   const refs = useRef<Record<string, Mesh>>({})
+  // const URDFRobot = useMemo(() => useLoader(
+  //   URDFLoaderShim,
+  //   props.filepath
+  // ), [])
   const URDFRobot: URDFRobot = useLoader(
     URDFLoaderShim,
     props.filepath
@@ -76,13 +80,15 @@ const URDF =
               }
             }
           })
+          const mod = linkIndex % 7
           const color =
-              linkIndex == 0 ? 'darkorange'
-            : linkIndex == 1 ? 'gold'
-            : linkIndex == 2 ? 'green'
-            : linkIndex == 3 ? 'blue'
-            : linkIndex == 4 ? 'purple'
-            :                  'deeppink'
+              mod == 0 ? 'darkorange'
+            : mod == 1 ? 'gold'
+            : mod == 2 ? 'green'
+            : mod == 3 ? 'blue'
+            : mod == 4 ? 'purple'
+            : mod == 5 ? 'deeppink'
+            :            'red'
           return (
             <mesh {...meshProps} ref={(e) => refs.current[link.name] = e!}>
               {nested}
@@ -168,6 +174,7 @@ const URDF =
   // }
   // const URDF = getRobot(props.filepath, props.position, props.rotation)
   const URDF = getMeshTree( URDFRobot, props.position, props.rotation )
+  // const URDF = useMemo(() => getMeshTree( URDFRobot, props.position, props.rotation ), [URDFRobot])
   // const calculateJointAngles = (
   //   meshProps: meshProps,
   //   elapsedTime: any
@@ -222,11 +229,6 @@ export function App() {
 
   <URDF {...T12} />
   */
-  const T12: urdfProps = {
-    filepath: '../T12/urdf/T12.URDF',
-    position: new Vector3(0, 0, 0),
-    rotation: new Euler(Math.PI/2, 0, 0)
-  }
   const dataset = '../urdf_files_dataset/urdf_files'
   // Working examples
   const fanuc_lrmate200ib: urdfProps = {
@@ -272,6 +274,11 @@ export function App() {
   }
   // TODO: Model is too big to load
   // [Error] RangeError: length too large
+  const T12: urdfProps = {
+    filepath: '../T12/urdf/T12.URDF',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(Math.PI/2, 0, 0)
+  }
   const jackal: urdfProps = {
     filepath: dataset + '/oems/xacro_generated/jackal_clearpath_robotics/jackal_description/urdf/jackal.urdf',
     position: new Vector3(0, 0, 0),
@@ -295,12 +302,11 @@ export function App() {
     <Canvas
       dpr={[1, 2]}
       camera={{
-        position: [0, 2, 2],
+        position: [-0.5, 3, 2.5],
         near: 0.01,
-        far: 100
+        far: 200
       }}>
       <Suspense fallback={null}>
-        {/* <URDF {...T12} /> */}
         <URDF {...fanuc_lrmate200ib} />
         <URDF {...fanuc_m16ib} />
         <URDF {...motoman_mh5} />
@@ -309,6 +315,7 @@ export function App() {
         <URDF {...kukaIiwa7} />
         <URDF {...kukaIiwa14} />
         {/* <URDF {...abb_irb140} /> */}
+        {/* <URDF {...T12} /> */}
         {/* <URDF {...jackal} /> */}
         {/* <URDF {...panda_arm} /> */}
         {/* <URDF {...abb_irb5400} /> */}
