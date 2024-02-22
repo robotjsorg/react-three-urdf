@@ -1,11 +1,14 @@
 import { useRef, ReactElement, Suspense } from 'react' //, useMemo
 import { Mesh, Euler, Vector3 } from 'three'
-import { Canvas, MeshProps, useLoader } from '@react-three/fiber' //, useFrame
+import { Canvas, LoaderProto, MeshProps, useLoader } from '@react-three/fiber' //, useFrame
 import { OrbitControls, Text } from '@react-three/drei'
 import { URDFRobot, URDFVisual, URDFJoint, URDFLink } from 'urdf-loader'
 import URDFLoaderShim from './urdf-loader-fiber-shim'
 
-// import { suspend } from 'suspend-react'
+// TEST IMPORTS
+import * as THREE from "three"
+import URDFLoader from 'urdf-loader'
+import { suspend } from 'suspend-react'
 
 interface urdfProps {
   filepath: string
@@ -39,11 +42,11 @@ const URDF =
   //   URDFLoaderShim,
   //   props.filepath
   // ), [])
-  const URDFRobot: URDFRobot = useLoader(
+  const URDFRobot: any = useLoader(
+    // URDFLoader as unknown as LoaderProto<any>,
     URDFLoaderShim,
     props.filepath
   )
-  console.log(URDFRobot)
   const jointMeshTree = (
     joint: URDFJoint,
     linkIndex: number = 0
@@ -159,64 +162,93 @@ const URDF =
       )
     }
   }
-  // const getRobot = ( path: string, position: Vector3, rotation: Euler ) => {
-  //   suspend(async () => {
-  //     const URDFRobot: URDFRobot = useLoader(
-  //       URDFLoaderShim,
-  //       path
-  //     )
-  //     console.log(URDFRobot)
-  //     const URDF = getMeshTree( URDFRobot, position, rotation )
-  //     return (
-  //       URDF
-  //     )
-  //   }, [path])
-  // }
-  // const URDF = getRobot(props.filepath, props.position, props.rotation)
+  /* suspend-react
+  const getRobot = ( path: string, position: Vector3, rotation: Euler ) => {
+    suspend(async () => {
+      const URDFRobot: URDFRobot = useLoader(
+        URDFLoaderShim,
+        path
+      )
+      console.log(URDFRobot)
+      const URDF = getMeshTree( URDFRobot, position, rotation )
+      return (
+        URDF
+      )
+    }, [path])
+  }
+  const URDF = getRobot(props.filepath, props.position, props.rotation)
+  */
   const URDF = getMeshTree( URDFRobot, props.position, props.rotation )
   // const URDF = useMemo(() => getMeshTree( URDFRobot, props.position, props.rotation ), [URDFRobot])
-  // const calculateJointAngles = (
-  //   meshProps: meshProps,
-  //   elapsedTime: any
-  // ): number => {
-  //   return (
-  //       (meshProps.startRotation + elapsedTime)
-  //     % (meshProps.limit.upper - meshProps.limit.lower)
-  //     + meshProps.limit.lower
-  //   )
-  // }
-  // const updateJoint =
-  // (
-  //   mesh: Mesh,
-  //   elapsedTime: any
-  // ) => {
-  //   if ( mesh ){
-  //     const meshProps = mesh as unknown as meshProps
-  //     if ( meshProps.axis.x ) {
-  //       mesh.rotation.x = calculateJointAngles(meshProps, elapsedTime)
-  //     } else if ( meshProps.axis.y ) {
-  //       mesh.rotation.y = calculateJointAngles(meshProps, elapsedTime)
-  //     } else if ( meshProps.axis.z ) {
-  //       mesh.rotation.z = calculateJointAngles(meshProps, elapsedTime)
-  //     }
-  //   }
-  // }
-  // useFrame((state) => {
-  //   const joints = refs.current
-  //   for ( const joint in joints ) {
-  //     updateJoint(joints[joint], state.clock.getElapsedTime())
-  //   }
-  //   // updateJoint(refs.current.Hip1, state.clock.getElapsedTime())
-  //   // updateJoint(refs.current.Thigh2, state.clock.getElapsedTime())
-  //   // updateJoint(refs.current.Knee3, state.clock.getElapsedTime())
-  //   // updateJoint(refs.current.Shin4, state.clock.getElapsedTime())
-  //   // updateJoint(refs.current.Ankle5, state.clock.getElapsedTime())
-  //   // updateJoint(refs.current.Foot6, state.clock.getElapsedTime())
-  // })
+  /* ROTATE JOINTS
+  const calculateJointAngles = (
+    meshProps: meshProps,
+    elapsedTime: any
+  ): number => {
+    return (
+        (meshProps.startRotation + elapsedTime)
+      % (meshProps.limit.upper - meshProps.limit.lower)
+      + meshProps.limit.lower
+    )
+  }
+  const updateJoint =
+  (
+    mesh: Mesh,
+    elapsedTime: any
+  ) => {
+    if ( mesh ){
+      const meshProps = mesh as unknown as meshProps
+      if ( meshProps.axis.x ) {
+        mesh.rotation.x = calculateJointAngles(meshProps, elapsedTime)
+      } else if ( meshProps.axis.y ) {
+        mesh.rotation.y = calculateJointAngles(meshProps, elapsedTime)
+      } else if ( meshProps.axis.z ) {
+        mesh.rotation.z = calculateJointAngles(meshProps, elapsedTime)
+      }
+    }
+  }
+  useFrame((state) => {
+    const joints = refs.current
+    for ( const joint in joints ) {
+      updateJoint(joints[joint], state.clock.getElapsedTime())
+    }
+    // updateJoint(refs.current.Hip1, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Thigh2, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Knee3, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Shin4, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Ankle5, state.clock.getElapsedTime())
+    // updateJoint(refs.current.Foot6, state.clock.getElapsedTime())
+  })
+  */
   return (
     <>
       {URDF}
     </>
+  )
+}
+const RobotVisual = () => {
+  var filepath = "panda_arm/panda_arm.urdf"
+  const robot = useLoader(URDFLoader as unknown as LoaderProto<any>, filepath)
+  const ref = useRef()
+
+  return (
+    <group>
+      <mesh
+        castShadow
+        receiveShadow
+        position={[0, 0, 1]}
+        rotation={[-0.5 * Math.PI, 0, Math.PI]}
+        scale={1}
+      >
+        <primitive
+          ref={ref}
+          object={robot}
+          position={[0, 0, 0]}
+          dispose={null}
+          castShadow
+        />
+      </mesh>
+    </group>
   )
 }
 export function App() {
@@ -226,7 +258,6 @@ export function App() {
     position: new Vector3(0, 0, 0),
     rotation: new Euler(Math.PI/2, 0, 0)
   }
-
   <URDF {...T12} />
   */
   const dataset = '../urdf_files_dataset/urdf_files'
@@ -266,32 +297,35 @@ export function App() {
     position: new Vector3(-0.5, 0, -1),
     rotation: new Euler(-Math.PI/2, 0, 0)
   }
-  // TODO: Joints misaligned and broken materials, No error
+  // [Bug] Joints misaligned and broken materials
+  // [Error] RangeError: length too large, when included with other urdfs
   const abb_irb140: urdfProps = {
     filepath: dataset + '/robotics-toolbox/abb_irb140/urdf/irb140.urdf',
     position: new Vector3(0, 0, 0),
     rotation: new Euler(-Math.PI/2, 0, 0)
   }
-  // TODO: Model is too big to load
-  // [Error] RangeError: length too large
+  // [Error] RangeError: length too large, when included with other urdfs
   const T12: urdfProps = {
     filepath: '../T12/urdf/T12.URDF',
     position: new Vector3(0, 0, 0),
     rotation: new Euler(Math.PI/2, 0, 0)
   }
+  // [Error] RangeError: length too large
   const jackal: urdfProps = {
     filepath: dataset + '/oems/xacro_generated/jackal_clearpath_robotics/jackal_description/urdf/jackal.urdf',
     position: new Vector3(0, 0, 0),
     rotation: new Euler(0, 0, 0)
   }
-  // TODO: Collada
+  // [Bug] Collada files load but do not display
+  // [Debug] THREE.ColladaLoader: File version – "1.4.1" (urdf-loader.js, line 2873)
+  // [Warning] THREE.ColladaLoader: You are loading an asset with a Z-UP coordinate system. The loader just rotates the asset to transform it into Y-UP. The vertex data are not converted, see #24289. (urdf-loader.js, line 2931)
+  const panda_arm: urdfProps = {
+    filepath: '../panda_arm/panda_arm.URDF',
+    position: new Vector3(0, 0, 0),
+    rotation: new Euler(0, 0, 0)
+  }
   // [Error] THREE.ColladaLoader: Failed to parse collada file.
   // [Error] TypeError: null is not an object (evaluating 'dae.scene') — URDFLoader.js:654
-  const panda_arm: urdfProps = {
-    filepath: '../panda_arm/meshes/panda_arm.urdf',
-    position: new Vector3(0, 0, 0),
-    rotation: new Euler(Math.PI/2, 0, 0)
-  }
   const abb_irb5400: urdfProps = {
     filepath: dataset + '/ros-industrial/abb/abb_irb5400_support/urdf/irb5400.urdf',
     position: new Vector3(0, 0, 0),
@@ -314,6 +348,7 @@ export function App() {
         <URDF {...abb_irb120} />
         <URDF {...kukaIiwa7} />
         <URDF {...kukaIiwa14} />
+        <RobotVisual/>
         {/* <URDF {...abb_irb140} /> */}
         {/* <URDF {...T12} /> */}
         {/* <URDF {...jackal} /> */}
