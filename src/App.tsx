@@ -6,9 +6,9 @@ import { URDFRobot, URDFVisual, URDFJoint, URDFLink } from 'urdf-loader'
 import URDFLoaderShim from './urdf-loader-fiber-shim'
 
 // TEST IMPORTS
-import * as THREE from "three"
+// import * as THREE from "three"
 import URDFLoader from 'urdf-loader'
-import { suspend } from 'suspend-react'
+// import { suspend } from 'suspend-react'
 
 interface urdfProps {
   filepath: string
