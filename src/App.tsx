@@ -8,7 +8,7 @@ import URDFLoaderShim from './urdf-loader-fiber-shim'
 // TEST IMPORTS
 // import * as THREE from "three"
 import URDFLoader from 'urdf-loader'
-// import { suspend } from 'suspend-react'
+import { suspend } from 'suspend-react'
 
 interface urdfProps {
   filepath: string
@@ -47,6 +47,7 @@ const URDF =
     URDFLoaderShim,
     props.filepath
   )
+
   const jointMeshTree = (
     joint: URDFJoint,
     linkIndex: number = 0
@@ -162,7 +163,6 @@ const URDF =
       )
     }
   }
-  /* suspend-react
   const getRobot = ( path: string, position: Vector3, rotation: Euler ) => {
     suspend(async () => {
       const URDFRobot: URDFRobot = useLoader(
@@ -177,8 +177,6 @@ const URDF =
     }, [path])
   }
   const URDF = getRobot(props.filepath, props.position, props.rotation)
-  */
-  const URDF = getMeshTree( URDFRobot, props.position, props.rotation )
   // const URDF = useMemo(() => getMeshTree( URDFRobot, props.position, props.rotation ), [URDFRobot])
   /* ROTATE JOINTS
   const calculateJointAngles = (
@@ -312,7 +310,7 @@ export function App() {
   }
   // [Error] RangeError: length too large
   const jackal: urdfProps = {
-    filepath: dataset + '/oems/xacro_generated/jackal_clearpath_robotics/jackal_description/urdf/jackal.urdf',
+    filepath: dataset + '/oems/xacro_generated/jackal_clearpath_ robotics/jackal_description/urdf/jackal.urdf',
     position: new Vector3(0, 0, 0),
     rotation: new Euler(0, 0, 0)
   }

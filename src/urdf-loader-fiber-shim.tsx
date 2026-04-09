@@ -24,9 +24,12 @@ export default class URDFLoaderShim extends URDFLoader {
     onProgress?: (event: ProgressEvent<EventTarget>) => void,
     onError?: (event: ErrorEvent) => void
   ) {
-    super.load(url, onLoad, onProgress as () => void, onError as () => void)
+    super.load(url, onLoad, onProgress, onError)
   }
   loadAsync(url: string, onProgress?: (event: ProgressEvent) => void) {
+    const path = url.substring(0, url.lastIndexOf("/") + 1);
+    this.setPath(path);
+    this.setResourcePath(path);
     return new Promise((resolve, reject) => {
       this.load(
         url,
@@ -34,7 +37,7 @@ export default class URDFLoaderShim extends URDFLoader {
           resolve(value)
         },
         onProgress,
-        () => reject()
+        (error) => reject(error)
       )
     })
   }
